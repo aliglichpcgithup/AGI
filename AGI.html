@@ -1,0 +1,276 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AGI Nexus v9.0 | Engineering Core</title>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+    <style>
+        :root {
+            --accent: #00ffaa;
+            --bg: #050508;
+            --sidebar: #0a0a0f;
+            --panel: rgba(16, 20, 28, 0.95);
+            --border: rgba(0, 255, 170, 0.1);
+            --text: #e2e8f0;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'JetBrains Mono', 'Fira Code', monospace; }
+        body { background: var(--bg); color: var(--text); height: 100vh; display: flex; overflow: hidden; }
+
+        /* Sidebar - Управление проектами */
+        .sidebar {
+            width: 280px; background: var(--sidebar); border-right: 1px solid var(--border);
+            display: flex; flex-direction: column; padding: 25px;
+        }
+        .btn-action {
+            background: var(--accent); color: #000; border: none; padding: 14px;
+            border-radius: 8px; font-weight: 900; cursor: pointer; margin-bottom: 20px;
+            text-transform: uppercase; font-size: 11px; letter-spacing: 1px;
+        }
+
+        .chat-list { flex: 1; overflow-y: auto; }
+        .chat-item {
+            padding: 12px; border-radius: 8px; cursor: pointer; margin-bottom: 6px;
+            font-size: 13px; border: 1px solid transparent; opacity: 0.5;
+            white-space: nowrap; overflow: hidden; text-overflow: ellipsis; transition: 0.2s;
+        }
+        .chat-item:hover { opacity: 0.8; background: rgba(255,255,255,0.03); }
+        .chat-item.active { background: rgba(0, 255, 170, 0.05); border-color: var(--border); opacity: 1; color: var(--accent); }
+
+        /* Main Workspace */
+        .main { flex: 1; display: flex; flex-direction: column; position: relative; background: radial-gradient(circle at 50% 50%, #0c0c14 0%, #050508 100%); }
+        .progress-bar { height: 2px; background: var(--accent); width: 0%; position: absolute; top: 0; transition: 0.3s; box-shadow: 0 0 15px var(--accent); z-index: 100; }
+
+        .viewport { flex: 1; overflow-y: auto; padding: 40px; }
+        .msg-wrap { max-width: 1100px; margin: 0 auto 35px; width: 100%; }
+        
+        .bubble { padding: 30px; border-radius: 14px; line-height: 1.8; font-size: 15px; position: relative; }
+        .user { background: rgba(0, 255, 170, 0.03); align-self: flex-end; border: 1px solid var(--border); }
+        .agi { background: rgba(255, 255, 255, 0.01); border-left: 3px solid var(--accent); width: 100%; }
+
+        /* High-Capacity Code Blocks */
+        pre { 
+            background: #000 !important; padding: 25px; border-radius: 10px; 
+            margin: 20px 0; border: 1px solid var(--border); overflow: auto;
+            position: relative; max-height: 900px; 
+        }
+        code { color: #50fa7b; font-size: 14px; }
+        .copy-btn {
+            position: absolute; top: 12px; right: 12px; background: var(--accent);
+            color: #000; border: none; padding: 6px 14px; border-radius: 4px;
+            font-size: 11px; font-weight: bold; cursor: pointer; opacity: 0.8;
+        }
+        .copy-btn:hover { opacity: 1; }
+
+        /* Input Controls */
+        .footer { padding: 20px 50px 50px; }
+        .input-area {
+            max-width: 1100px; margin: 0 auto; background: var(--panel);
+            border: 1px solid var(--border); border-radius: 20px;
+            padding: 12px 20px; display: flex; align-items: flex-end; gap: 15px;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.5);
+        }
+        textarea {
+            flex: 1; background: transparent; border: none; color: #fff;
+            outline: none; font-size: 16px; resize: none; max-height: 400px; padding: 8px 0;
+        }
+        .icon-btn {
+            background: transparent; border: none; color: #666; cursor: pointer;
+            width: 45px; height: 45px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+            transition: 0.2s;
+        }
+        .icon-btn:hover { color: var(--accent); background: rgba(0, 255, 170, 0.1); }
+        .send-btn { background: var(--accent); width: 45px; height: 45px; border-radius: 12px; border: none; cursor: pointer; display: flex; align-items: center; justify-content: center; }
+
+        ::-webkit-scrollbar { width: 5px; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+    </style>
+</head>
+<body>
+
+    <aside class="sidebar">
+        <button class="btn-action" onclick="createNew()">+ Initialize Project</button>
+        <div class="chat-list" id="chat-list"></div>
+        <div style="font-size: 10px; opacity: 0.3; text-align: center; margin-top: auto;">NEXUS ENGINE V9.0</div>
+    </aside>
+
+    <main class="main">
+        <div id="loading-line" class="progress-bar"></div>
+        <div class="viewport" id="viewport"></div>
+
+        <div class="footer">
+            <form id="nexus-form" class="input-area">
+                <input type="file" id="media-upload" hidden accept="image/*,video/*">
+                <button type="button" class="icon-btn" onclick="document.getElementById('media-upload').click()">📁</button>
+                <textarea id="nexus-input" rows="1" placeholder="Запрос на разработку... (TAB для отправки)"></textarea>
+                <button type="submit" class="send-btn">
+                    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#000" stroke-width="3"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"/></svg>
+                </button>
+            </form>
+        </div>
+    </main>
+
+    <script>
+        const API_KEY = "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";
+        const API_URL = "https://api.groq.com/openai/v1/chat/completions";
+
+        let storage = JSON.parse(localStorage.getItem('nexus_v9_data')) || [];
+        let activeId = localStorage.getItem('nexus_v9_id') || null;
+
+        const viewport = document.getElementById('viewport');
+        const input = document.getElementById('nexus-input');
+        const form = document.getElementById('nexus-form');
+        const loader = document.getElementById('loading-line');
+
+        // ГОРЯЧИЕ КЛАВИШИ (TAB SEND)
+        input.addEventListener('keydown', (e) => {
+            if (e.key === 'Tab') {
+                e.preventDefault();
+                if (e.shiftKey) {
+                    const s = input.selectionStart;
+                    input.value = input.value.substring(0, s) + "\t" + input.value.substring(input.selectionEnd);
+                    input.selectionEnd = s + 1;
+                } else {
+                    form.dispatchEvent(new Event('submit'));
+                }
+            }
+        });
+
+        input.oninput = () => {
+            input.style.height = 'auto';
+            input.style.height = input.scrollHeight + 'px';
+        };
+
+        function createNew() {
+            const id = Date.now();
+            storage.push({ 
+                id, 
+                title: "New Logic", 
+                messages: [{ 
+                    role: "system", 
+                    content: "Ты — продвинутый инженерный ИИ. Если запрос касается кода — пиши его максимально подробно, длинно (до 1000+ строк) и без сокращений. Если запрос общий — будь лаконичен. Используй русский язык." 
+                }] 
+            });
+            switchProject(id);
+        }
+
+        function switchProject(id) {
+            activeId = id;
+            localStorage.setItem('nexus_v9_id', id);
+            syncView();
+        }
+
+        function syncView() {
+            const list = document.getElementById('chat-list');
+            list.innerHTML = '';
+            storage.forEach(p => {
+                const item = document.createElement('div');
+                item.className = `chat-item ${p.id == activeId ? 'active' : ''}`;
+                item.innerText = p.title;
+                item.onclick = () => switchProject(p.id);
+                list.appendChild(item);
+            });
+
+            viewport.innerHTML = '';
+            const current = storage.find(p => p.id == activeId);
+            if(current) current.messages.forEach(m => {
+                if(m.role !== 'system') renderBubble(m.content, m.role);
+            });
+            viewport.scrollTop = viewport.scrollHeight;
+        }
+
+        form.onsubmit = async (e) => {
+            e.preventDefault();
+            const text = input.value.trim();
+            if(!text) return;
+
+            const project = storage.find(p => p.id == activeId);
+            renderBubble(text, 'user');
+            project.messages.push({ role: "user", content: text });
+            
+            input.value = '';
+            input.style.height = 'auto';
+            loader.style.width = '40%';
+
+            try {
+                const response = await fetch(API_URL, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${API_KEY}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        model: "llama-3.3-70b-versatile",
+                        messages: project.messages,
+                        temperature: 0.15, 
+                        max_tokens: 8192,
+                        stream: true
+                    })
+                });
+
+                const reader = response.body.getReader();
+                const decoder = new TextDecoder();
+                let fullResponse = "";
+                const bubble = renderBubble("", 'assistant');
+
+                while (true) {
+                    const { done, value } = await reader.read();
+                    if (done) break;
+                    const chunk = decoder.decode(value);
+                    const lines = chunk.split('\n');
+                    for (const line of lines) {
+                        if (line.startsWith('data: ')) {
+                            if (line.includes('[DONE]')) break;
+                            try {
+                                const json = JSON.parse(line.replace('data: ', ''));
+                                const token = json.choices[0].delta.content;
+                                if (token) {
+                                    fullResponse += token;
+                                    bubble.innerHTML = marked.parse(fullResponse);
+                                    applyTools(bubble);
+                                    if(viewport.scrollHeight - viewport.clientHeight <= viewport.scrollTop + 500) {
+                                        viewport.scrollTop = viewport.scrollHeight;
+                                    }
+                                }
+                            } catch (e) {}
+                        }
+                    }
+                }
+                project.messages.push({ role: "assistant", content: fullResponse });
+                if(project.title === "New Logic") project.title = text.substring(0, 22);
+                localStorage.setItem('nexus_v9_data', JSON.stringify(storage));
+                loader.style.width = '0%';
+                syncView();
+            } catch (err) {
+                loader.style.width = '0%';
+            }
+        };
+
+        function renderBubble(content, role) {
+            const wrap = document.createElement('div');
+            wrap.className = 'msg-wrap';
+            const div = document.createElement('div');
+            div.className = `bubble ${role === 'user' ? 'user' : 'agi'}`;
+            div.innerHTML = marked.parse(content);
+            wrap.appendChild(div);
+            viewport.appendChild(wrap);
+            if(role === 'assistant') applyTools(div);
+            return div;
+        }
+
+        function applyTools(el) {
+            el.querySelectorAll('pre').forEach(pre => {
+                if(pre.querySelector('.copy-btn')) return;
+                const btn = document.createElement('button');
+                btn.className = 'copy-btn'; btn.innerText = 'COPY';
+                btn.onclick = () => {
+                    navigator.clipboard.writeText(pre.querySelector('code').innerText);
+                    btn.innerText = 'DONE'; setTimeout(() => btn.innerText = 'COPY', 2000);
+                };
+                pre.appendChild(btn);
+            });
+        }
+
+        if(storage.length === 0) createNew();
+        else switchProject(activeId || storage[0].id);
+    </script>
+</body>
+</html>
